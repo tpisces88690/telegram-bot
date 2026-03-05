@@ -14,8 +14,10 @@ const fs = require('fs');
 const DATA_FILE = 'data.json';
 let data = { joinTime: {}, readStatus: {}, formStatus: {}, points: {}, violationCount: {}, ghostStatus: {} };
 
-// 讀取資料
-if (fs.existsSync(DATA_FILE)) {
+// 如果檔案不存在，先建立一個空的
+if (!fs.existsSync(DATA_FILE)) {
+    fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
+} else {
     data = JSON.parse(fs.readFileSync(DATA_FILE));
 }
 
@@ -104,99 +106,6 @@ setInterval(() => {
     }
 }, 24*60*60*1000);
 
-// ===== 表單私訊流程 =====
-bot.on("text", async (ctx) => {
-    if (ctx.chat.type !== "private") return;
-
-    const userId = ctx.from.id;
-    const text = ctx.message.text.trim();
-
-    if (text === "已填寫") {
-        data.formStatus[userId] = true;
-        save();
-        await ctx.reply("📬 已收到你的表單填寫通知，請等待管理員審核");
-    }
-});
-
-// ===== 外部連結偵測 =====
-const ALLOWED_LINKS = [
-    "t.me/你的群組ID",
-    "t.me/+你的邀請碼"
-];
-function containsURL(text) {
-    const urlRegex = /(https?:\/\/[^\s]+)/g;
-    return urlRegex.test(text);
-}
-bot.on("message", async (ctx, next) => {
-    const msg = ctx.message;
-    const text = msg.text || "";
-    const userId = msg.from.id;
-
-    if (ADMIN_IDS.includes(userId)) return next();
-
-    if (containsURL(text)) {
-        let safe = false;
-        for (let link of ALLOWED_LINKS) {
-            if (text.includes(link)) safe = true;
-        }
-        if (!safe) {
-            await ctx.deleteMessage().catch(()=>{});
-            await ctx.reply(`🚫 <a href="tg://user?id=${userId}">你</a> 禁止張貼外部連結，已被移除`, { parse_mode: "HTML" });
-            await bot.telegram.kickChatMember(TARGET_GROUP_ID, userId);
-            return;
-        }
-    }
-    return next();
-});
-
-// ===== 禁止非管理員邀請成員 =====
-bot.on("chat_member", async (ctx) => {
-    const dataCM = ctx.update.chat_member;
-    const newMember = dataCM.new_chat_member;
-    const inviter = dataCM.from;
-
-    if (newMember && newMember.status === "member") {
-        if (!ADMIN_IDS.includes(inviter.id)) {
-            await bot.telegram.kickChatMember(TARGET_GROUP_ID, inviter.id);
-            await ctx.reply(`🚫 <a href="tg://user?id=${inviter.id}">你</a> 未經允許邀請成員 → 已被移除`, { parse_mode: "HTML" });
-        }
-    }
-});
-
-// ===== 違規次數累積 =====
-function handleViolation(ctx, userId) {
-    if (!data.violationCount[userId]) data.violationCount[userId] = 0;
-    data.violationCount[userId]++;
-    save();
-
-    const count = data.violationCount[userId];
-
-    if (count === 1) {
-        ctx.reply(`⚠️ <a href="tg://user?id=${userId}">你</a> 第 1 次違規（警告）`, { parse_mode: "HTML" });
-    }
-    if (count === 3) {
-        ctx.reply(`⛔ <a href="tg://user?id=${userId}">你</a> 第 3 次違規 → 禁言 3 天`, { parse_mode: "HTML" });
-        bot.telegram.restrictChatMember(TARGET_GROUP_ID, userId, {
-            until_date: Math.floor(Date.now()/1000) + 3*24*60*60,
-            can_send_messages: false
-        });
-    }
-    if (count >= 5) {
-        ctx.reply(`🚪 <a href="tg://user?id=${userId}">你</a> 第 5 次違規 → 已被移除`, { parse_mode: "HTML" });
-        bot.telegram.kickChatMember(TARGET_GROUP_ID, userId);
-    }
-}
-
-// ===== 積分系統 =====
-function addPoints(userId, amount) {
-    if (!data.points[userId]) data.points[userId] = 0;
-    data.points[userId] += amount;
-    save();
-}
-
-// ===== 幽靈偵測 =====
-setInterval(() => {
-    const now = Date.now();
-    for (let userId in data.ghostStatus) {
-        const lastActive = data.ghostStatus[userId];
-        const days = Math.floor((now - lastActive) / (24*60*60
+// ===== Bot 啟動 =====
+bot.start((ctx) => ctx.reply(`${BOT_NAME} 已啟動`));
+bot.launch().then(() => console.log(`${BOT_NAME} 運行中，監控群組 ${TARGET_GROUP_ID}`));
