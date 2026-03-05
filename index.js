@@ -4,13 +4,10 @@
 
 const { Telegraf, Markup } = require('telegraf');
 const BOT_NAME = "食堂鎮暴秩序部隊 🤖";
-const BOT_TOKEN = "8316532268:AAGT-82-IrAjmQdcsYHHLs_9H510h6ilebM"; // 你之後可以自行更換
+const bot = new Telegraf(process.env.BOT_TOKEN); // 改成讀環境變數
 const TARGET_GROUP_ID = -1003742241522;
 const ADMIN_IDS = [8165338666, 8392427662];
 const GOOGLE_FORM_LINK = "https://docs.google.com/forms/d/e/1FAIpQLSfjXx5H0b402yqpAjnSluQHse59qL2GO5zup0pINR5Mau3C0w/viewform?usp=sharing";
-
-// ===== 初始化 Bot =====
-const bot = new Telegraf(BOT_TOKEN);
 
 // ===== JSON 儲存資料 =====
 const fs = require('fs');
@@ -202,97 +199,4 @@ setInterval(() => {
     const now = Date.now();
     for (let userId in data.ghostStatus) {
         const lastActive = data.ghostStatus[userId];
-        const days = Math.floor((now - lastActive) / (24*60*60*1000));
-        if (days === 7) {
-            bot.telegram.sendMessage(TARGET_GROUP_ID, `⚠️ <a href="tg://user?id=${userId}">你</a> 7 天未互動，請活躍`, { parse_mode: "HTML" });
-        }
-        if (days >= 10) {
-            bot.telegram.kickChatMember(TARGET_GROUP_ID, userId);
-            bot.telegram.sendMessage(TARGET_GROUP_ID, `🚪 <a href="tg://user?id=${userId}">你</a> 10 天未互動，已被移除`, { parse_mode: "HTML" });
-        }
-    }
-}, 24*60*60*1000);
-
-// ===== Bot 啟動 =====
-bot.start((ctx) => ctx.reply(`${BOT_NAME} 已啟動`));
-bot.launch().then(() => console.log(`${BOT_NAME} 運行中，監控群組 ${TARGET_GROUP_ID}`));
-
-// ===== 管理員指令 =====
-bot.command('check', (ctx) => {
-    if (!ADMIN_IDS.includes(ctx.from.id)) return;
-    const args = ctx.message.text.split(" ");
-    const userId = args[1];
-    if (!userId) return ctx.reply("請輸入 userId");
-    ctx.reply(`使用者 ${userId} 積分：${data.points[userId] || 0}`);
-});
-
-bot.command('list', (ctx) => {
-    if (!ADMIN_IDS.includes(ctx.from.id)) return;
-    let result = "成員積分列表：\n";
-    for (let uid in data.points) {
-        result += `ID:${uid} → ${data.points[uid]} 分\n`;
-    }
-    ctx.reply(result);
-});
-
-bot.command('addpoints', (ctx) => {
-    if (!ADMIN_IDS.includes(ctx.from.id)) return;
-    const args = ctx.message.text.split(" ");
-    const userId = args[1];
-    const amount = parseInt(args[2]);
-    if (!userId || isNaN(amount)) return ctx.reply("格式錯誤：/addpoints <userId> <amount>");
-    addPoints(userId, amount);
-    ctx.reply(`已為 ${userId} 加 ${amount} 分`);
-});
-
-bot.command('deduct', (ctx) => {
-    if (!ADMIN_IDS.includes(ctx.from.id)) return;
-    const args = ctx.message.text.split(" ");
-    const userId = args[1];
-    const amount = parseInt(args[2]);
-    if (!userId || isNaN(amount)) return ctx.reply("格式錯誤：/deduct <userId> <amount>");
-    if (!data.points[userId]) data.points[userId] = 0;
-    data.points[userId] -= amount;
-    save();
-    ctx.reply(`已為 ${userId} 扣 ${amount} 分`);
-});
-
-bot.command('notfilled', (ctx) => {
-    if (!ADMIN_IDS.includes(ctx.from.id)) return;
-    let result = "未填寫名單：\n";
-    for (let uid in data.readStatus) {
-        if (!data.readStatus[uid]) result += `ID:${uid}\n`;
-    }
-    ctx.reply(result);
-});
-
-bot.command('rules', (ctx) => {
-    ctx.reply("請查看群組置頂公告");
-});
-
-bot.command('ghostscan', (ctx) => {
-    if (!ADMIN_IDS.includes(ctx.from.id)) return;
-    let result = "幽靈成員：\n";
-    const now = Date.now();
-    for (let uid in data.ghostStatus) {
-        const lastActive = data.ghostStatus[uid];
-        const days = Math.floor((now - lastActive) / (24*60*60*1000));
-        if (days >= 7) result += `ID:${uid}\n`;
-    }
-    ctx.reply(result);
-});
-
-bot.command('adminhelp', (ctx) => {
-    if (!ADMIN_IDS.includes(ctx.from.id)) return;
-    ctx.reply(`
-管理員指令表：
-/check <userId> → 查某個人的積分
-/list → 查全部成員
-/addpoints <userId> <amount> → 手動加分
-/deduct <userId> <amount> → 手動扣分
-/notfilled → 查誰還沒標記「已填寫」
-/rules → 推送群規
-/ghostscan → 幽靈掃描（檢查誰 7 天沒互動）
-/adminhelp → 一鍵查詢完整指令表
-    `);
-});
+        const days = Math.floor((now - lastActive) / (24*60*60
