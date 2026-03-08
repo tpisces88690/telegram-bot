@@ -2,26 +2,23 @@
 // 台灣🔞成人交流深夜食堂💎-👶新生學生會- 完整 Bot
 // ========================================
 
-const { Telegraf, Markup } = require('telegraf');
+const { Telegraf } = require('telegraf');
 const BOT_NAME = "食堂鎮暴秩序部隊 🤖";
 const bot = new Telegraf(process.env.BOT_TOKEN); // 改成讀環境變數
 const TARGET_GROUP_ID = -1003742241522;
 const ADMIN_IDS = [8165338666, 8392427662];
 const GOOGLE_FORM_LINK = "https://docs.google.com/forms/d/e/1FAIpQLSfjXx5H0b402yqpAjnSluQHse59qL2GO5zup0pINR5Mau3C0w/viewform?usp=sharing";
 
-// ===== JSON 儲存資料 =====
 const fs = require('fs');
 const DATA_FILE = 'data.json';
 let data = { joinTime: {}, readStatus: {}, formStatus: {}, points: {}, violationCount: {}, ghostStatus: {} };
 
-// 如果檔案不存在，先建立一個空的
 if (!fs.existsSync(DATA_FILE)) {
     fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
 } else {
     data = JSON.parse(fs.readFileSync(DATA_FILE));
 }
 
-// 儲存資料
 function save() {
     fs.writeFileSync(DATA_FILE, JSON.stringify(data, null, 2));
 }
@@ -69,7 +66,7 @@ bot.on("new_chat_members", async (ctx) => {
         await ctx.reply(
             `👋 歡迎 <a href="tg://user?id=${userId}">${member.first_name}</a>\n` +
             `你目前為 🔒【預設禁言】\n` +
-            `請點擊置頂公告中的「我已閱讀公告」後即可開始聊天 🎺`,
+            `請點擊置頂公告中的「我已閱讀公告 ✅」後即可開始聊天 🎺`,
             {
                 parse_mode: "HTML",
                 reply_markup: {
@@ -105,6 +102,60 @@ setInterval(() => {
         }
     }
 }, 24*60*60*1000);
+
+// ===== 管理員指令 =====
+bot.command('unmute', async (ctx) => {
+    if (!ADMIN_IDS.includes(ctx.from.id)) return;
+    const parts = ctx.message.text.split(" ");
+    const userId = parts[1];
+    if (!userId) return ctx.reply("請輸入要解除禁言的 userId");
+    await bot.telegram.restrictChatMember(TARGET_GROUP_ID, userId, {
+        can_send_messages: true,
+        can_send_media_messages: true,
+        can_send_other_messages: true,
+        can_add_web_page_previews: true
+    });
+    ctx.reply(`✅ 已解除 <a href="tg://user?id=${userId}">此用戶</a> 的禁言`, { parse_mode: "HTML" });
+});
+
+bot.command('addpoints', (ctx) => {
+    if (!ADMIN_IDS.includes(ctx.from.id)) return;
+    const parts = ctx.message.text.split(" ");
+    const userId = parts[1];
+    const amount = parseInt(parts[2]);
+    if (!userId || isNaN(amount)) return ctx.reply("格式錯誤：/addpoints userId 數量");
+    data.points[userId] = (data.points[userId] || 0) + amount;
+    save();
+    ctx.reply(`✅ 已為 <a href="tg://user?id=${userId}">此用戶</a> 增加 ${amount} 分，目前積分：${data.points[userId]}`, { parse_mode: "HTML" });
+});
+
+bot.command('deduct', (ctx) => {
+    if (!ADMIN_IDS.includes(ctx.from.id)) return;
+    const parts = ctx.message.text.split(" ");
+    const userId = parts[1];
+    const amount = parseInt(parts[2]);
+    if (!userId || isNaN(amount)) return ctx.reply("格式錯誤：/deduct userId 數量");
+    data.points[userId] = (data.points[userId] || 0) - amount;
+    save();
+    ctx.reply(`✅ 已為 <a href="tg://user?id=${userId}">此用戶</a> 扣除 ${amount} 分，目前積分：${data.points[userId]}`, { parse_mode: "HTML" });
+});
+
+bot.command('me', (ctx) => {
+    const userId = ctx.from.id;
+    const points = data.points[userId] || 0;
+    ctx.reply(`📊 你的積分：${points}`);
+});
+
+bot.command('rank', (ctx) => {
+    const ranking = Object.entries(data.points)
+        .sort((a,b) => b[1]-a[1])
+        .slice(0,10);
+    let msg = "🏆 積分排行榜前 10 名：\n";
+    ranking.forEach(([uid, pts], i) => {
+        msg += `${i+1}. <a href="tg://user?id=${uid}">用戶</a> - ${pts} 分\n`;
+    });
+    ctx.reply(msg, { parse_mode: "HTML" });
+});
 
 // ===== Bot 啟動 =====
 bot.start((ctx) => ctx.reply(`${BOT_NAME} 已啟動`));
