@@ -8,9 +8,11 @@ const fs = require('fs');
 
 const BOT_NAME = "食堂鎮暴秩序部隊 🤖";
 const bot = new Telegraf(process.env.BOT_TOKEN);
-const TARGET_GROUP_ID = -1003742241522;
-const ADMIN_IDS = [8165338666, 8392427662]; // 管理員 ID 已填入
-const GOOGLE_FORM_LINK = "https://docs.google.com/forms/d/e/1FAIpQLSfjXx5H0b402yqpAjnSluQHse59qL2GO5zup0pINR5Mau3C0w/viewform?usp=sharing";
+
+// 使用環境變數設定
+const TARGET_GROUP_ID = parseInt(process.env.TARGET_GROUP_ID); 
+const ADMIN_IDS = process.env.ADMIN_IDS ? process.env.ADMIN_IDS.split(",").map(id => parseInt(id)) : [];
+const GOOGLE_FORM_LINK = process.env.GOOGLE_FORM_LINK || "https://docs.google.com/forms/..."; 
 
 const DATA_FILE = 'data.json';
 let data = { joinTime: {}, readStatus: {}, formStatus: {}, points: {}, violationCount: {}, ghostStatus: {}, lastCheckin: {} };
@@ -73,7 +75,6 @@ bot.action('read_announcement', async (ctx) => {
     await ctx.answerCbQuery("已解除禁言 ✅");
     await ctx.reply(`🎺 <a href="tg://user?id=${userId}">${ctx.from.first_name}</a> 已完成公告閱讀\n請填寫表單：${GOOGLE_FORM_LINK}`, { parse_mode: "HTML" });
 });
-
 // ===== 公告未讀提醒 =====
 setInterval(() => {
     const now = Date.now();
